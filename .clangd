@@ -1,0 +1,12 @@
+CompileFlags:
+  Remove:
+    - -fstrict-volatile-bitfields
+    - -fno-tree-switch-conversion
+    - -march=rv32imc*
+  Add:
+    - -IC:/Users/Nick/.platformio/packages/toolchain-riscv32-esp/bin/../lib/gcc/riscv32-esp-elf/14.2.0/../../../../riscv32-esp-elf/include/c++/14.2.0
+    - -IC:/Users/Nick/.platformio/packages/toolchain-riscv32-esp/bin/../lib/gcc/riscv32-esp-elf/14.2.0/../../../../riscv32-esp-elf/include/c++/14.2.0/riscv32-esp-elf/.
+    - -IC:/Users/Nick/.platformio/packages/toolchain-riscv32-esp/bin/../lib/gcc/riscv32-esp-elf/14.2.0/../../../../riscv32-esp-elf/include/c++/14.2.0/backward
+    - -IC:/Users/Nick/.platformio/packages/toolchain-riscv32-esp/bin/../lib/gcc/riscv32-esp-elf/14.2.0/include
+    - -IC:/Users/Nick/.platformio/packages/toolchain-riscv32-esp/bin/../lib/gcc/riscv32-esp-elf/14.2.0/include-fixed
+    - -IC:/Users/Nick/.platformio/packages/toolchain-riscv32-esp/bin/../lib/gcc/riscv32-esp-elf/14.2.0/../../../../riscv32-esp-elf/include

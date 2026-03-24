@@ -1,0 +1,6 @@
+CompileFlags:
+  Add: [
+    "-I.pio/libdeps/env:seeed_xiao_esp32c3",
+    "-I.pio/build/env:seeed_xiao_esp32c3",
+    "-Isrc"
+  ]
