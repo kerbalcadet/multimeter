@@ -1,11 +1,20 @@
 .pio/build/seeed_xiao_esp32c3/FrameworkArduino/MD5Builder.cpp.o: \
- C:/Users/Nick/.platformio/packages/framework-arduinoespressif32/cores/esp32/MD5Builder.cpp \
- C:/Users/Nick/.platformio/packages/framework-arduinoespressif32/cores/esp32/HEXBuilder.h \
- C:/Users/Nick/.platformio/packages/framework-arduinoespressif32/cores/esp32/WString.h \
- C:/Users/Nick/.platformio/packages/framework-arduinoespressif32/cores/esp32/pgmspace.h \
- C:/Users/Nick/.platformio/packages/framework-arduinoespressif32/cores/esp32/Stream.h \
- C:/Users/Nick/.platformio/packages/framework-arduinoespressif32/cores/esp32/Print.h \
- C:/Users/Nick/.platformio/packages/framework-arduinoespressif32/cores/esp32/WString.h \
- C:/Users/Nick/.platformio/packages/framework-arduinoespressif32/cores/esp32/Printable.h \
- C:/Users/Nick/.platformio/packages/framework-arduinoespressif32/cores/esp32/MD5Builder.h \
- C:/Users/Nick/.platformio/packages/framework-arduinoespressif32/cores/esp32/HashBuilder.h
+ /home/nick/.platformio/packages/framework-arduinoespressif32/cores/esp32/MD5Builder.cpp \
+ /home/nick/.platformio/packages/framework-arduinoespressif32/cores/esp32/HEXBuilder.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32/cores/esp32/WString.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32/cores/esp32/pgmspace.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/newlib/platform_include/ctype.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32/cores/esp32/Stream.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32/cores/esp32/Print.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/newlib/platform_include/stdio.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32/cores/esp32/WString.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32/cores/esp32/Printable.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32/cores/esp32/MD5Builder.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/esp_system/include/esp_system.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/esp_common/include/esp_err.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/esp_common/include/esp_compiler.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/esp_common/include/esp_attr.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/esp_common/include/esp_bit_defs.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/esp_common/include/esp_idf_version.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/esp_rom/include/esp_rom_md5.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32/cores/esp32/HashBuilder.h

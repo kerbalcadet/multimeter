@@ -1,3 +1,31 @@
 .pio/build/seeed_xiao_esp32c3/FrameworkArduino/WMath.cpp.o: \
- C:/Users/Nick/.platformio/packages/framework-arduinoespressif32/cores/esp32/WMath.cpp \
- C:/Users/Nick/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-log.h
+ /home/nick/.platformio/packages/framework-arduinoespressif32/cores/esp32/WMath.cpp \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/esp_system/include/esp_system.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/esp_common/include/esp_err.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/newlib/platform_include/stdio.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/esp_common/include/esp_compiler.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/esp_common/include/esp_attr.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/esp_common/include/esp_bit_defs.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/esp_common/include/esp_idf_version.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-log.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/esp_timer/include/esp_timer.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/esp_hw_support/include/esp_etm.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/esp_rom/esp32c3/include/esp32c3/rom/ets_sys.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/log/include/esp_log.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/esp_rom/include/esp_rom_sys.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/soc/esp32c3/include/soc/reset_reasons.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/soc/esp32c3/include/soc/soc_caps.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/log/include/esp_log_config.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/log/include/esp_log_level.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/esp_common/include/esp_assert.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/log/include/esp_log_color.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/log/include/esp_log_buffer.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/log/include/esp_log_timestamp.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/log/include/esp_log_write.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/log/include/esp_log_format.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/log/include/esp_log_args.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/esp_common/include/esp_macros.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/esp_common/include/esp_assert.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/log/include/esp_log_attr.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/log/include/esp_private/log_attr.h \
+ /home/nick/.platformio/packages/framework-arduinoespressif32-libs/esp32c3/include/esp_hw_support/include/esp_random.h

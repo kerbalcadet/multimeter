@@ -6,9 +6,8 @@
 #include <types.h>
 using namespace std;
 
-GxEPD2_BW<GxEPD2_213_B74, GxEPD2_213_B74::HEIGHT> display(
-    GxEPD2_213_B74(/*CS*/ 0, /*DC*/ D3, /*RST*/ D7,
-                   /*BUSY*/ D6)); // GDEH0213B72 122x250, SSD1675A (IL3897)
+GxEPD2_BW<GxEPD2_213_B74, GxEPD2_213_B74::HEIGHT> display(GxEPD2_213_B74(/*CS*/ -1, /*DC*/ D7, /*RST*/ D0,
+                                                                         /*BUSY*/ D3)); // GDEH0213B72 122x250, SSD1675A (IL3897)
 
 namespace screen {
 
@@ -26,9 +25,9 @@ const int n_batt_cells = 4;
 
 int batt_level() { return 2; }
 
-std::string_view get_header() { return measure_mode->name; }
+const char *get_header() { return measure_mode->name; }
 
-std::string_view get_unit() { return measure_mode->unit; }
+const char *get_unit() { return measure_mode->unit; }
 
 // DISPLAY
 
@@ -87,7 +86,6 @@ void draw_reading() {
   int y = h - 20;
 
   display.setCursor(x, y);
-  string to_print;
   display.print(cur_measurement, 2);
 }
 
@@ -109,9 +107,7 @@ void draw_bg() {
   display.fillRect(0, 0, 10, corner_size, bl);
 }
 
-void draw_triangle_circ(int num, vec2 center_pos, int rad, float len,
-                        int base_len, float start_ang_deg, bool fill,
-                        int color) {
+void draw_triangle_circ(int num, vec2 center_pos, int rad, float len, int base_len, float start_ang_deg, bool fill, int color) {
   float start_rot = (start_ang_deg * 3.14f / 180.0f);
   float step_rot = (2.0f * PI / num);
 
@@ -159,8 +155,7 @@ void draw_light_bar() {
     if (i < level) {
       // fill
       int pad = 2;
-      display.fillRect(pad, b_top + pad - boxh, side_size - 2 * pad + 1,
-                       boxh - 2 * pad + 1, bl);
+      display.fillRect(pad, b_top + pad - boxh, side_size - 2 * pad + 1, boxh - 2 * pad + 1, bl);
     }
   }
 }
@@ -179,44 +174,34 @@ void draw_battery() {
 
   // right to left
   // cap
-  display.drawEllipse(w - pad, header_size / 2, ell_w_ratio * float(cap_h) / 2,
-                      cap_h / 2, bl);
-  display.fillEllipse(w - pad - 2, header_size / 2,
-                      ell_w_ratio * float(cap_h) / 2, cap_h / 2, wh);
+  display.drawEllipse(w - pad, header_size / 2, ell_w_ratio * float(cap_h) / 2, cap_h / 2, bl);
+  display.fillEllipse(w - pad - 2, header_size / 2, ell_w_ratio * float(cap_h) / 2, cap_h / 2, wh);
   display.drawFastHLine(w - pad - cap_w, cap_vbuf, cap_w, bl);
   display.drawFastHLine(w - pad - cap_w, cap_h + cap_vbuf, cap_w, bl);
 
   // cells
   for (int i = 0; i < n_batt_cells; i++) {
     int front = w - pad - cap_w - i * cell_w;
-    display.drawEllipse(front, header_size / 2, ell_w_ratio * cell_r, cell_r,
-                        bl);
+    display.drawEllipse(front, header_size / 2, ell_w_ratio * cell_r, cell_r, bl);
 
     // fill in
     if (4 - i <= level) {
-      display.drawEllipse(front + 1, header_size / 2, ell_w_ratio * cell_r,
-                          cell_r, wh);
-      display.fillEllipse(front - 1, header_size / 2, ell_w_ratio * cell_r,
-                          cell_r, bl);
+      display.drawEllipse(front + 1, header_size / 2, ell_w_ratio * cell_r, cell_r, wh);
+      display.fillEllipse(front - 1, header_size / 2, ell_w_ratio * cell_r, cell_r, bl);
       display.fillRect(front - cell_w, cell_vbuf, cell_w, cell_h, bl);
     } else {
       // empty/white
-      display.fillEllipse(front - 2, header_size / 2, ell_w_ratio * cell_r,
-                          cell_r, wh);
+      display.fillEllipse(front - 2, header_size / 2, ell_w_ratio * cell_r, cell_r, wh);
     }
   }
 
   // end
-  display.fillEllipse(w - pad - cap_w - 4 * cell_w, header_size / 2,
-                      ell_w_ratio * cell_r, cell_r, bl);
-  display.drawEllipse(w - pad - cap_w - 4 * cell_w, header_size / 2,
-                      ell_w_ratio * cell_r, cell_r, wh);
+  display.fillEllipse(w - pad - cap_w - 4 * cell_w, header_size / 2, ell_w_ratio * cell_r, cell_r, bl);
+  display.drawEllipse(w - pad - cap_w - 4 * cell_w, header_size / 2, ell_w_ratio * cell_r, cell_r, wh);
 
   // top/bott
-  display.drawFastHLine(w - pad - cap_w - cell_w * 4,
-                        (header_size - cell_h) / 2, cell_w * 4, bl);
-  display.drawFastHLine(w - pad - cap_w - cell_w * 4,
-                        cell_h + (header_size - cell_h) / 2, cell_w * 4, bl);
+  display.drawFastHLine(w - pad - cap_w - cell_w * 4, (header_size - cell_h) / 2, cell_w * 4, bl);
+  display.drawFastHLine(w - pad - cap_w - cell_w * 4, cell_h + (header_size - cell_h) / 2, cell_w * 4, bl);
 }
 
 const int head_v_pad = 8;
@@ -224,12 +209,12 @@ const int head_h_pad = 20;
 constexpr int head_x = (corner_size + head_h_pad);
 constexpr int head_y = (header_size - head_v_pad);
 void draw_header() {
-  std::string_view txt = get_header();
+  const char *txt = get_header();
   display.setFont(&Tinos_Italic_24);
   display.setTextColor(GxEPD_BLACK);
 
   display.setCursor(head_x, head_y);
-  display.write(txt.data(), txt.length());
+  display.write(txt);
 }
 
 void redraw_header() { // re-add header line that gets erased due to 8-px
@@ -244,7 +229,7 @@ const int u_y = h - 35;
 void draw_unit() {
   display.setCursor(u_x, u_y);
   display.setFont(&Tinos_Italic_24);
-  display.print(get_unit().data());
+  display.print(get_unit());
 }
 const int u_wind[] = {u_x, u_y - 24, 30, 24};
 

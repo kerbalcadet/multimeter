@@ -1,29 +1,35 @@
 #pragma once
 #include <cstdint>
-#include <stdexcept>
 #include <Arduino.h>
+#include <sys/types.h>
 
-extern const std::unordered_map<float, uint8_t> pga_to_bin;
 uint16_t get_adc_config(uint8_t analog_in, uint8_t v_range);
 
-struct MeasureMode {
-  uint16_t cfg;
-  float v_range;
-  float significant_voltage;
-  std::string_view name;
-  std::string_view unit;
+enum class PGA_VOLTAGE : uint8_t {
+  V0_256 = 0b101,
+  V0_512 = 0b100,
+  V1_024 = 0b011,
+  V2_048 = 0b010,
+  V4_096 = 0b001,
+  V6_144 = 0b000,
+};
 
-  MeasureMode(float _v_range_float, bool a0_or_a2, std::string_view _name, std::string_view _unit);
+struct MeasureMode {
+  uint16_t cfg = 0;
+  const char* name = "";
+  const char* unit = "";
+
+  MeasureMode(bool a0_or_a2, const char* _name, const char* _unit);
 };
 
 struct ScopedTimer {
   private :
     uint32_t m_start_time;
-    const std::string_view label;
+    const char* label;
   public :
-    ScopedTimer(std::string_view name) : m_start_time(millis()), label(name) {};
+    ScopedTimer(const char* name) : m_start_time(millis()), label(name) {};
     ~ScopedTimer() {
-      Serial.write(label.data(), label.size());
+      Serial.write(label);
       Serial.write(' ');
       Serial.println(millis() - m_start_time);
     }
