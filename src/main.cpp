@@ -69,6 +69,9 @@ const float measure_voltage() {
     delay(150);
 
     v_reading = adc.getVoltage();
+    if (v_reading > 1.5) {
+      return -1.0f;
+    }
     v_corr = v_reading * V_RANGE_CORR_FACTORS[range];
 
     pcf.write(pin, 1);
@@ -284,7 +287,11 @@ void loop() {
 
   } else if (cur_mode == MEASURE_VOLTAGE) {
     float v = measure_voltage();
-    snprintf(reading_buf, 8, "%.2f", v);
+    if (v >= 0) {
+      snprintf(reading_buf, 8, "%.2f", v);
+    } else {
+      snprintf(reading_buf, 8, " NEG");
+    }
   }
 
   if (strcmp(reading_buf, last_reading) != 0 || mode_changed) {
