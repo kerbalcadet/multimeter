@@ -13,8 +13,8 @@ namespace screen {
 
 // global defs
 
-const MeasureMode *measure_mode = nullptr;
-float cur_measurement = 0.00;
+MeasureMode measure_mode = MeasureMode("DEFAULT_MODE", "");
+char cur_measurement[8] = "0.00";
 
 // internal
 
@@ -25,9 +25,9 @@ const int n_batt_cells = 4;
 
 int batt_level() { return 2; }
 
-const char *get_header() { return measure_mode->name; }
+const char *get_header() { return measure_mode.name; }
 
-const char *get_unit() { return measure_mode->unit; }
+const char *get_unit() { return measure_mode.unit; }
 
 // DISPLAY
 
@@ -86,7 +86,7 @@ void draw_reading() {
   int y = h - 20;
 
   display.setCursor(x, y);
-  display.print(cur_measurement, 2);
+  display.print(cur_measurement);
 }
 
 const int r_wind[] = {45, 38, 160, 64};
@@ -240,11 +240,9 @@ auto draw_measure_mode_fast = []() {
 
 // interface
 
-void update_state(const MeasureMode *mode, float reading) {
-  bool mode_changed = measure_mode != mode;
-
+void update_state(const MeasureMode mode, bool mode_changed, const char *reading) {
   measure_mode = mode;
-  cur_measurement = reading;
+  snprintf(cur_measurement, sizeof(cur_measurement), "%s", reading);
 
   draw_reading_fast();
 

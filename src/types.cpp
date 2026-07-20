@@ -21,6 +21,7 @@
 // 111 = FS = ±0.256V
 // config int16 : OS | MUX | PGA |M| DR |CM CP CL CQ
 
+// In case settings need to be adjusted again. compile-time anyway.
 uint16_t get_adc_config(uint8_t analog_in, uint8_t v_range = 0b010) {
   uint16_t cfg = 0;
   cfg |= (1 << 15); // os=1 (start conversion)
@@ -33,7 +34,4 @@ uint16_t get_adc_config(uint8_t analog_in, uint8_t v_range = 0b010) {
   return cfg;
 }
 
-MeasureMode::MeasureMode(bool a0_or_a2, const char *_name, const char *_unit) : name(_name), unit(_unit) {
-  uint8_t mux = a0_or_a2 ? 0b101 : 0b011;
-  cfg = get_adc_config(mux);
-}
+MeasureMode::MeasureMode(const char *_name, const char *_unit) : name(_name), unit(_unit) { cfg = get_adc_config(0b101); }

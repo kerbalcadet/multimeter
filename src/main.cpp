@@ -22,9 +22,19 @@ const int POWER_ON_HOLD_TIME = 100;                // ms
 const int POWER_OFF_HOLD_TIME = 3000;              // ms
 constexpr int POWER_OFF_IDLE_TIME = 5 * 60 * 1000; // mins to ms
 
-const MeasureMode MEASURE_VOLTAGE = MeasureMode(true, "Voltage", "V");
-const MeasureMode MEASURE_CONTINUITY = MeasureMode(false, "Continuity", "");
-const MeasureMode *p_cur_measure_mode = &MEASURE_VOLTAGE;
+const MeasureMode MEASURE_VOLTAGE = MeasureMode("Voltage", "V");
+const MeasureMode MEASURE_CONTINUITY = MeasureMode("Continuity", "");
+const MeasureMode MEASURE_MODES[] = {MEASURE_VOLTAGE, MEASURE_CONTINUITY};
+const int N_MEASURE_MODES = 2;
+int cur_measure_mode_idx = 0;
+
+void cycle_measure_mode(bool forward) {
+  int d_idx = forward ? 1 : -1;
+  cur_measure_mode_idx += d_idx;
+  cur_measure_mode_idx = cur_measure_mode_idx % N_MEASURE_MODES;
+}
+
+MeasureMode cur_measure_mode() { return MEASURE_MODES[cur_measure_mode_idx]; }
 
 const int PCF_RANGE_PINS[] = {1, 3, 5};
 const int PCF_POWER_INJECT_PIN = 7;
@@ -40,17 +50,10 @@ enum class DeviceState { SETUP, SETUP_FAILED, RUNNING, ASLEEP } device_state;
 
 // HARDWARE INTERFACES
 
-volatile bool mode_changed = false;
-void switch_measure_mode() {
-  mode_changed = true;
-  p_cur_measure_mode = (p_cur_measure_mode == &MEASURE_VOLTAGE) ? &MEASURE_CONTINUITY : &MEASURE_VOLTAGE;
-}
-
-volatile bool button_pressed = false;
-void pcf_interrupt() { button_pressed = true; }
+void start_measurement() { adc.setConfig(cur_measure_mode().cfg); }
 
 // here, a pcf pin value of 0 (grounded) is what enables that optorelay. Therefore 1 = disabled, 0 = enabled
-float measure_voltage() {
+const float measure_voltage() {
   float v_reading = 0.0;
   float v_corr = 0.0;
 
@@ -59,7 +62,8 @@ float measure_voltage() {
   }
 
   for (int range = 0; range < V_NUM_RANGES; range++) {
-    adc.setConfig(p_cur_measure_mode->cfg);
+    start_measurement();
+
     const int pin = PCF_RANGE_PINS[range];
     pcf.write(pin, 0);
     delay(150);
@@ -74,13 +78,14 @@ float measure_voltage() {
     }
   }
 
-  float v = roundf(v_corr * 100.0f) / 100.0f; // 2 decimal places
+  float v = roundf(v_corr * 100.0f) / 100.0f; // rounded to 2 decimal places (up or down)
   return v;
 }
 
 const int CONT_MEASURE_PIN = PCF_RANGE_PINS[1];
 bool measure_continuity() {
-  adc.setConfig(p_cur_measure_mode->cfg);
+  start_measurement();
+
   pcf.write(PCF_POWER_INJECT_PIN, 0);
   pcf.write(CONT_MEASURE_PIN, 0);
   delay(150);
@@ -133,14 +138,13 @@ void submit_command(char *user_cmd) {
   }
 }
 
-char cmd_buffer[MAX_CMD_SIZE];
-int cmd_len = 0;
-bool last_button_state = 1; // 0 = pressed
-int button_hold_time = 0;
-int idle_time = 0;
-extern u_long frame_time;
-void process_input() {
-  // process button
+bool process_input() {
+  extern u_long frame_time;
+
+  // main button
+  static bool last_button_state = 1; // 0 = pressed
+  static int button_hold_time = 0;
+  static int idle_time = 0;
   bool button_state = pcf.read(PCF_BUTTON_PIN);
 
   if (button_state == 0) {
@@ -148,7 +152,9 @@ void process_input() {
     idle_time = 0;
 
     if (last_button_state == 1) {
-      // TODO: switch measure mode
+      cycle_measure_mode(true);
+      last_button_state = button_state;
+      return true;
     }
   } else {
     button_hold_time = 0;
@@ -168,9 +174,11 @@ void process_input() {
     set_sleep(true);
     idle_time = 0;
   }
-  Serial.println(idle_time);
 
-  // process serial commands
+  // serial commands
+  static char cmd_buffer[MAX_CMD_SIZE];
+  static int cmd_len = 0;
+
   while (Serial.available() && (cmd_len < MAX_CMD_SIZE)) {
     char c = Serial.read();
 
@@ -187,11 +195,12 @@ void process_input() {
       cmd_buffer[cmd_len++] = c;
     }
   }
+
+  return false;
 }
 
 // ARDUINO CALLS
 
-float voltage = 0; // V
 void setup() {
   Serial.begin(115200);
   pinMode(0, OUTPUT);
@@ -232,7 +241,7 @@ void setup() {
   digitalWrite(BUZZER_PIN, LOW);
 
   // display (SPI)
-  screen::update_state(&MEASURE_VOLTAGE, 0.0f);
+  screen::update_state(cur_measure_mode(), true, "0.00");
   screen::init_display();
 
   delay(200);
@@ -241,6 +250,7 @@ void setup() {
 
 u_long frame_time = 0;
 u_long last_millis = 0;
+char last_reading[8] = "";
 void loop() {
   if (device_state == DeviceState::SETUP_FAILED || device_state == DeviceState::SETUP) {
     return;
@@ -250,33 +260,37 @@ void loop() {
   frame_time = new_millis - last_millis;
   last_millis = new_millis;
 
-  process_input();
+  bool mode_changed = process_input();
 
   if (device_state != DeviceState::RUNNING) {
     delay(ASLEEP_FRAME_TIME);
     return;
   }
 
-  if (false) {
+  char reading_buf[8];
+  const MeasureMode cur_mode = cur_measure_mode();
+  if (cur_mode == MEASURE_CONTINUITY) {
     bool cont = measure_continuity();
 
+    // TODO: RM
+    digitalWrite(BUZZER_PIN, LOW);
     if (cont) {
-      tone(BUZZER_PIN, 1000, AWAKE_FRAME_TIME + 200); // using timer because noTone causes electrical noise to be audible somehow
+      // tone(BUZZER_PIN, 1000, AWAKE_FRAME_TIME + 200); // using timer because noTone causes electrical noise to be audible somehow
+      strcpy(reading_buf, "----");
     } else {
       digitalWrite(BUZZER_PIN, LOW);
+      strcpy(reading_buf, "-/ -");
     }
 
-    delay(AWAKE_FRAME_TIME);
-    return;
+  } else if (cur_mode == MEASURE_VOLTAGE) {
+    float v = measure_voltage();
+    snprintf(reading_buf, 8, "%.2f", v);
   }
 
-  // measurement
-  float new_voltage = measure_voltage();
-  if (new_voltage != voltage || mode_changed) {
-    voltage = new_voltage;
-    mode_changed = false;
-    screen::update_state(p_cur_measure_mode, voltage);
+  if (strcmp(reading_buf, last_reading) != 0 || mode_changed) {
+    strcpy(last_reading, reading_buf);
+    screen::update_state(cur_measure_mode(), mode_changed, reading_buf);
   } else {
     delay(AWAKE_FRAME_TIME);
   }
-};
+}
