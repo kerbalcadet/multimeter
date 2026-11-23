@@ -72,9 +72,9 @@ void light_sleep(uint64_t ms = 0, bool interruptable = true) {
   }
 
   if (interruptable) {
-    // esp_sleep_enable_gpio_wakeup();
+    esp_sleep_enable_gpio_wakeup();
   } else {
-    // esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_GPIO);
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_GPIO);
   }
 
   esp_light_sleep_start();
@@ -93,7 +93,7 @@ void long_sleep() {
 
 void start_measurement() { adc.setConfig(cur_measure_mode().cfg); }
 
-// pcf pin value of 0 (grounded) is what enables that optorelay. Therefore 1 = disabled, 0 = enabled
+// pcf pin value of 0 (grounded) enables optical relay
 const float measure_voltage() {
   float v_reading = 0.0;
   float v_corr = 0.0;
@@ -159,9 +159,8 @@ void scanI2C() {
 
 // USER INTERACT
 
-volatile bool button_pressed_this_frame = false;
-volatile int n_pressed = 0;
-void IRAM_ATTR on_button_pressed() { n_pressed += 1; }
+volatile bool button_pressed = false;
+void IRAM_ATTR on_button_pressed() { button_pressed = true; }
 
 const uint8_t MAX_CMD_SIZE = 32;
 void submit_command(char *user_cmd) {
@@ -179,7 +178,6 @@ void submit_command(char *user_cmd) {
 }
 
 void process_input() {
-  Serial.println(n_pressed);
   extern u_long frame_time;
   bool button_pressed = !digitalRead(BUTTON_PIN);
 
@@ -196,9 +194,9 @@ void process_input() {
     return;
   }
 
-  if (button_pressed_this_frame) {
+  if (button_pressed) {
     cycle_measure_mode(true);
-    button_pressed_this_frame = false;
+    button_pressed = false;
   }
 
   // main button
@@ -317,7 +315,7 @@ void loop() {
   last_millis = new_millis;
 
   // interaction
-  bool cycled = button_pressed_this_frame;
+  bool cycled = button_pressed;
   process_input();
 
   // get measurement
@@ -345,7 +343,7 @@ void loop() {
   }
 
   // update screen
-  if (strcmp(reading_buf, last_reading) != 0 || cycled) {
+  if (cycled || strcmp(reading_buf, last_reading) != 0) {
     strcpy(last_reading, reading_buf);
 
     float batt_volt = measure_battery();
@@ -357,6 +355,6 @@ void loop() {
       Serial.println(batt_volt);
     }
   } else {
-    light_sleep(FRAME_TIME, !button_pressed_this_frame);
+    light_sleep(FRAME_TIME, !button_pressed);
   }
 }
