@@ -1,5 +1,9 @@
 #include "HardwareSerial.h"
+#include "driver/gpio.h"
+#include "esp32-hal-adc.h"
 #include "esp32-hal-gpio.h"
+#include "esp_sleep.h"
+#include "hal/gpio_types.h"
 #include <ADC_SGM58031.h>
 #include <Arduino.h>
 #include <PCF8574.h>
@@ -9,6 +13,8 @@
 #include <display.h>
 #include <types.h>
 
+const bool DEBUG = true;
+
 // DEVICES
 
 PCF8574 pcf(0x20);
@@ -16,8 +22,7 @@ RAK_ADC_SGM58031 adc(0x48);
 
 // Global defs
 
-const int AWAKE_FRAME_TIME = 200;                  // ms if display does not update, ~450 ms if display updates
-const int ASLEEP_FRAME_TIME = 1000;                // ms
+const int FRAME_TIME = 200;                        // ms if display does not update, ~450 ms if display updates
 const int POWER_ON_HOLD_TIME = 100;                // ms
 const int POWER_OFF_HOLD_TIME = 3000;              // ms
 constexpr int POWER_OFF_IDLE_TIME = 5 * 60 * 1000; // mins to ms
@@ -38,21 +43,57 @@ MeasureMode cur_measure_mode() { return MEASURE_MODES[cur_measure_mode_idx]; }
 
 const int PCF_RANGE_PINS[] = {1, 3, 5};
 const int PCF_POWER_INJECT_PIN = 7;
-const int PCF_BUTTON_PIN = 0;
+const int BUTTON_PIN = D9;
+const float BATT_CORR_FACTOR = 2.00f;
 const int BUZZER_PIN = D6;
+const int BATT_MEASURE_PIN = D0;
 const int V_NUM_RANGES = 3;
 // const float RANGE_RESISTANCES[] = {19900.0, 218800.0, 1208000.0, 1307000.0}; // resistance from bottom of ladder to measurement points
-const float V_RANGE_CORR_FACTORS[] = {65.678, 5.973, 1.082}; // ladder: gnd -> 20k (0) -> 200k (1) -> 1M (2) -> 100k -> V+
+const float V_RANGE_CORR_FACTORS[] = {72.5, 6.06, 1.082}; // ladder: gnd -> 20k (0) -> 200k (1) -> 1M (2) -> 100k -> V+
 const float MIN_SIGNIFICANT_VOLTAGE = 0.01f;
 const float MAX_SIGNIFICANT_VOLTAGE = 1.0f;
 
-enum class DeviceState { SETUP, SETUP_FAILED, RUNNING, ASLEEP } device_state;
+enum class DeviceState { SETUP, SETUP_FAILED, RUNNING, ALL_ASLEEP, AWAITING_SLEEP, SCREEN_ASLEEP } device_state;
 
 // HARDWARE INTERFACES
 
+void on_button_pressed();
+
+void wake() {
+  screen::wake();
+  device_state = DeviceState::RUNNING;
+}
+
+void light_sleep(uint64_t ms = 0, bool interruptable = true) {
+  if (ms > 0) {
+    esp_sleep_enable_timer_wakeup(ms * 1000);
+  } else {
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TIMER);
+  }
+
+  if (interruptable) {
+    // esp_sleep_enable_gpio_wakeup();
+  } else {
+    // esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_GPIO);
+  }
+
+  esp_light_sleep_start();
+
+  // after wake
+
+  if (device_state == DeviceState::ALL_ASLEEP) {
+    wake();
+  }
+}
+
+void long_sleep() {
+  device_state = DeviceState::ALL_ASLEEP;
+  light_sleep();
+}
+
 void start_measurement() { adc.setConfig(cur_measure_mode().cfg); }
 
-// here, a pcf pin value of 0 (grounded) is what enables that optorelay. Therefore 1 = disabled, 0 = enabled
+// pcf pin value of 0 (grounded) is what enables that optorelay. Therefore 1 = disabled, 0 = enabled
 const float measure_voltage() {
   float v_reading = 0.0;
   float v_corr = 0.0;
@@ -69,7 +110,8 @@ const float measure_voltage() {
     delay(150);
 
     v_reading = adc.getVoltage();
-    if (v_reading > 1.5) {
+    // Serial.println(v_reading, 4);
+    if (v_reading > 1.7) {
       return -1.0f;
     }
     v_corr = v_reading * V_RANGE_CORR_FACTORS[range];
@@ -91,7 +133,7 @@ bool measure_continuity() {
 
   pcf.write(PCF_POWER_INJECT_PIN, 0);
   pcf.write(CONT_MEASURE_PIN, 0);
-  delay(150);
+  light_sleep(150, false);
 
   bool cont = adc.getVoltage() < 0.02;
 
@@ -100,6 +142,8 @@ bool measure_continuity() {
 
   return cont;
 }
+
+float measure_battery() { return analogReadMilliVolts(D0) * BATT_CORR_FACTOR / 1000.0f; }
 
 void scanI2C() {
   for (uint8_t addr = 0x07; addr <= 0x77; addr++) {
@@ -115,16 +159,9 @@ void scanI2C() {
 
 // USER INTERACT
 
-void set_sleep(bool asleep) {
-  if (asleep) {
-    screen::sleep();
-    device_state = DeviceState::ASLEEP;
-  } else {
-    screen::wake();
-    device_state = DeviceState::RUNNING;
-  }
-}
-void toggle_sleep() { set_sleep(device_state == DeviceState::RUNNING); }
+volatile bool button_pressed_this_frame = false;
+volatile int n_pressed = 0;
+void IRAM_ATTR on_button_pressed() { n_pressed += 1; }
 
 const uint8_t MAX_CMD_SIZE = 32;
 void submit_command(char *user_cmd) {
@@ -134,31 +171,44 @@ void submit_command(char *user_cmd) {
     ESP.restart();
 
   } else if (strcmp(user_cmd, "wake") == 0) {
-    set_sleep(false);
+    wake();
 
   } else if (strcmp(user_cmd, "sleep") == 0) {
-    set_sleep(true);
+    long_sleep();
   }
 }
 
-bool process_input() {
+void process_input() {
+  Serial.println(n_pressed);
   extern u_long frame_time;
+  bool button_pressed = !digitalRead(BUTTON_PIN);
+
+  if (device_state == DeviceState::AWAITING_SLEEP) {
+    screen::sleep();
+    device_state = DeviceState::SCREEN_ASLEEP;
+    return;
+
+  } else if (device_state == DeviceState::SCREEN_ASLEEP) {
+    if (!button_pressed) {
+      long_sleep(); // sleep CPU after button is released to avoid immediate wakeup trigger
+    }
+
+    return;
+  }
+
+  if (button_pressed_this_frame) {
+    cycle_measure_mode(true);
+    button_pressed_this_frame = false;
+  }
 
   // main button
-  static bool last_button_state = 1; // 0 = pressed
   static int button_hold_time = 0;
   static int idle_time = 0;
-  bool button_state = pcf.read(PCF_BUTTON_PIN);
 
-  if (button_state == 0) {
+  if (button_pressed) {
     button_hold_time += frame_time;
     idle_time = 0;
 
-    if (last_button_state == 1) {
-      cycle_measure_mode(true);
-      last_button_state = button_state;
-      return true;
-    }
   } else {
     button_hold_time = 0;
 
@@ -166,16 +216,15 @@ bool process_input() {
       idle_time += frame_time;
     }
   }
-  last_button_state = button_state;
 
-  if ((device_state == DeviceState::RUNNING && button_hold_time > POWER_OFF_HOLD_TIME) ||
-      (device_state == DeviceState::ASLEEP && button_hold_time > POWER_ON_HOLD_TIME)) {
-    toggle_sleep();
+  if (device_state == DeviceState::RUNNING && (button_hold_time > POWER_OFF_HOLD_TIME || idle_time > POWER_OFF_IDLE_TIME)) {
+    device_state = DeviceState::AWAITING_SLEEP;
     button_hold_time = 0;
-
-  } else if (idle_time > POWER_OFF_IDLE_TIME) {
-    set_sleep(true);
     idle_time = 0;
+  }
+
+  if (!DEBUG) {
+    return;
   }
 
   // serial commands
@@ -198,20 +247,21 @@ bool process_input() {
       cmd_buffer[cmd_len++] = c;
     }
   }
-
-  return false;
 }
 
 // ARDUINO CALLS
 
 void setup() {
   Serial.begin(115200);
-  pinMode(0, OUTPUT);
 
   Wire.begin(SDA, SCL);
-  delay(3000); // allow serial to catch up
 
-  scanI2C();
+  if (DEBUG) {
+    delay(3000); // allow serial to catch up
+    scanI2C();
+  }
+
+  // initialize devices
 
   if (!pcf.begin()) {
     Serial.print("no pcf connection");
@@ -219,10 +269,7 @@ void setup() {
   }
   delay(100);
 
-  // adc (sgm58031)
-
   adc.begin();
-
   if (adc.getChipID() != DEVICE_ID) {
     Serial.println("no adc connection");
     device_state = DeviceState::SETUP_FAILED;
@@ -236,18 +283,24 @@ void setup() {
     return;
   }
 
-  pinMode(2, OUTPUT);
-  pinMode(D0, OUTPUT);
+  // set up pins
+
+  pinMode(D1, OUTPUT);
   pinMode(D3, INPUT_PULLDOWN);
   pinMode(D7, OUTPUT);
   pinMode(BUZZER_PIN, OUTPUT);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
   digitalWrite(BUZZER_PIN, LOW);
 
+  // sleep / interrupts
+
+  attachInterrupt(BUTTON_PIN, on_button_pressed, FALLING);
+  // gpio_wakeup_enable((gpio_num_t)BUTTON_PIN, GPIO_INTR_LOW_LEVEL);
+
   // display (SPI)
-  screen::update_state(cur_measure_mode(), true, "0.00");
+  screen::update_state(cur_measure_mode(), true, "0.00", screen::batt_level(measure_battery()));
   screen::init_display();
 
-  delay(200);
   device_state = DeviceState::RUNNING;
 }
 
@@ -263,19 +316,16 @@ void loop() {
   frame_time = new_millis - last_millis;
   last_millis = new_millis;
 
-  bool mode_changed = process_input();
+  // interaction
+  bool cycled = button_pressed_this_frame;
+  process_input();
 
-  if (device_state != DeviceState::RUNNING) {
-    delay(ASLEEP_FRAME_TIME);
-    return;
-  }
-
+  // get measurement
   char reading_buf[8];
   const MeasureMode cur_mode = cur_measure_mode();
   if (cur_mode == MEASURE_CONTINUITY) {
     bool cont = measure_continuity();
 
-    // TODO: RM
     digitalWrite(BUZZER_PIN, LOW);
     if (cont) {
       // tone(BUZZER_PIN, 1000, AWAKE_FRAME_TIME + 200); // using timer because noTone causes electrical noise to be audible somehow
@@ -294,10 +344,19 @@ void loop() {
     }
   }
 
-  if (strcmp(reading_buf, last_reading) != 0 || mode_changed) {
+  // update screen
+  if (strcmp(reading_buf, last_reading) != 0 || cycled) {
     strcpy(last_reading, reading_buf);
-    screen::update_state(cur_measure_mode(), mode_changed, reading_buf);
+
+    float batt_volt = measure_battery();
+    int batt_level = screen::batt_level(batt_volt);
+    screen::update_state(cur_measure_mode(), cycled, reading_buf, batt_level);
+
+    if (DEBUG) {
+      Serial.print("Battery Voltage: ");
+      Serial.println(batt_volt);
+    }
   } else {
-    delay(AWAKE_FRAME_TIME);
+    light_sleep(FRAME_TIME, !button_pressed_this_frame);
   }
 }

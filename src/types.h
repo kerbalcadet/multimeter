@@ -37,3 +37,30 @@ public:
     Serial.println(millis() - m_start_time);
   }
 };
+
+struct vec2 {
+  float x, y;
+
+  vec2 operator+(const vec2 &v2) const { return {x + v2.x, y + v2.y}; };
+  vec2 operator-(const vec2 &v2) const { return {x - v2.x, y - v2.y}; };
+  vec2 operator-() const { return {-x, -y}; };
+  vec2 operator*(const float mul) const { return {x * mul, y * mul}; };
+  vec2 operator/(const float mul) const { return {x / mul, y / mul}; };
+
+  vec2 rotate(float angle) {
+    float c = cos(angle);
+    float s = sin(angle);
+    float new_x = x * c - y * s;
+    float new_y = x * s + y * c;
+    x = new_x;
+    y = new_y;
+
+    return *this;
+  }
+
+  vec2 rotated(float angle) const {
+    float c = cos(angle);
+    float s = sin(angle);
+    return vec2(x * c - y * s, x * s + y * c);
+  }
+};

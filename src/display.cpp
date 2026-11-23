@@ -6,7 +6,7 @@
 #include <types.h>
 using namespace std;
 
-GxEPD2_BW<GxEPD2_213_B74, GxEPD2_213_B74::HEIGHT> display(GxEPD2_213_B74(/*CS*/ -1, /*DC*/ D7, /*RST*/ D0,
+GxEPD2_BW<GxEPD2_213_B74, GxEPD2_213_B74::HEIGHT> display(GxEPD2_213_B74(/*CS*/ -1, /*DC*/ D7, /*RST*/ D1,
                                                                          /*BUSY*/ D3)); // GDEH0213B72 122x250, SSD1675A (IL3897)
 
 namespace screen {
@@ -21,12 +21,20 @@ char cur_measurement[8] = "0.00";
 const int n_light_levels = 5;
 int light_level() { return 3; }
 
+int last_batt_level = -1;
 const int n_batt_cells = 4;
+const float batt_charge_thresholds[] = {3.65f, 3.75f, 3.90f, 4.05};
 
-int batt_level() { return 2; }
+int batt_level(float batt_voltage) {
+  int level = 0;
+  while (level < n_batt_cells && batt_voltage > batt_charge_thresholds[level]) {
+    level++;
+  }
+
+  return level;
+}
 
 const char *get_header() { return measure_mode.name; }
-
 const char *get_unit() { return measure_mode.unit; }
 
 // DISPLAY
@@ -38,33 +46,6 @@ const int bl = 0;
 const int header_size = 32;
 const int side_size = 30;
 const int corner_size = header_size + 10;
-
-struct vec2 {
-  float x, y;
-
-  vec2 operator+(const vec2 &v2) const { return {x + v2.x, y + v2.y}; };
-  vec2 operator-(const vec2 &v2) const { return {x - v2.x, y - v2.y}; };
-  vec2 operator-() const { return {-x, -y}; };
-  vec2 operator*(const float mul) const { return {x * mul, y * mul}; };
-  vec2 operator/(const float mul) const { return {x / mul, y / mul}; };
-
-  vec2 rotate(float angle) {
-    float c = cos(angle);
-    float s = sin(angle);
-    float new_x = x * c - y * s;
-    float new_y = x * s + y * c;
-    x = new_x;
-    y = new_y;
-
-    return *this;
-  }
-
-  vec2 rotated(float angle) const {
-    float c = cos(angle);
-    float s = sin(angle);
-    return vec2(x * c - y * s, x * s + y * c);
-  }
-};
 
 void fast_draw(const int window[], void(draw_func)()) {
   display.setPartialWindow(window[0], window[1], window[2], window[3]);
@@ -161,43 +142,43 @@ void draw_light_bar() {
 }
 
 void draw_battery() {
-  int level = batt_level();
+  int level = last_batt_level;
   const int pad = 10;
   const int cap_w = 5;
   const int cap_h = 10;
   const int cell_w = 10;
   const int cell_h = 20;
-  const float ell_w_ratio = 0.4;
+  const float cell_w_ratio = 0.4;
   constexpr int cell_r = cell_h / 2;
   constexpr int cap_vbuf = (header_size - cap_h) / 2;
   constexpr int cell_vbuf = (header_size - cell_h) / 2;
 
   // right to left
   // cap
-  display.drawEllipse(w - pad, header_size / 2, ell_w_ratio * float(cap_h) / 2, cap_h / 2, bl);
-  display.fillEllipse(w - pad - 2, header_size / 2, ell_w_ratio * float(cap_h) / 2, cap_h / 2, wh);
+  display.drawEllipse(w - pad, header_size / 2, cell_w_ratio * float(cap_h) / 2, cap_h / 2, bl);
+  display.fillEllipse(w - pad - 2, header_size / 2, cell_w_ratio * float(cap_h) / 2, cap_h / 2, wh);
   display.drawFastHLine(w - pad - cap_w, cap_vbuf, cap_w, bl);
   display.drawFastHLine(w - pad - cap_w, cap_h + cap_vbuf, cap_w, bl);
 
   // cells
   for (int i = 0; i < n_batt_cells; i++) {
     int front = w - pad - cap_w - i * cell_w;
-    display.drawEllipse(front, header_size / 2, ell_w_ratio * cell_r, cell_r, bl);
+    display.drawEllipse(front, header_size / 2, cell_w_ratio * cell_r, cell_r, bl);
 
     // fill in
     if (4 - i <= level) {
-      display.drawEllipse(front + 1, header_size / 2, ell_w_ratio * cell_r, cell_r, wh);
-      display.fillEllipse(front - 1, header_size / 2, ell_w_ratio * cell_r, cell_r, bl);
+      display.drawEllipse(front + 1, header_size / 2, cell_w_ratio * cell_r, cell_r, wh);
+      display.fillEllipse(front - 1, header_size / 2, cell_w_ratio * cell_r, cell_r, bl);
       display.fillRect(front - cell_w, cell_vbuf, cell_w, cell_h, bl);
     } else {
       // empty/white
-      display.fillEllipse(front - 2, header_size / 2, ell_w_ratio * cell_r, cell_r, wh);
+      display.fillEllipse(front - 2, header_size / 2, cell_w_ratio * cell_r, cell_r, wh);
     }
   }
 
   // end
-  display.fillEllipse(w - pad - cap_w - 4 * cell_w, header_size / 2, ell_w_ratio * cell_r, cell_r, bl);
-  display.drawEllipse(w - pad - cap_w - 4 * cell_w, header_size / 2, ell_w_ratio * cell_r, cell_r, wh);
+  display.fillEllipse(w - pad - cap_w - 4 * cell_w, header_size / 2, cell_w_ratio * cell_r, cell_r, bl);
+  display.drawEllipse(w - pad - cap_w - 4 * cell_w, header_size / 2, cell_w_ratio * cell_r, cell_r, wh);
 
   // top/bott
   display.drawFastHLine(w - pad - cap_w - cell_w * 4, (header_size - cell_h) / 2, cell_w * 4, bl);
@@ -240,17 +221,6 @@ auto draw_measure_mode_fast = []() {
 
 // interface
 
-void update_state(const MeasureMode mode, bool mode_changed, const char *reading) {
-  measure_mode = mode;
-  snprintf(cur_measurement, sizeof(cur_measurement), "%s", reading);
-
-  draw_reading_fast();
-
-  if (mode_changed) {
-    draw_measure_mode_fast();
-  }
-}
-
 void init_display() {
   display.init(115200, true, 2, false);
   display.setRotation(1);
@@ -265,6 +235,26 @@ void init_display() {
   draw_unit();
   display.display(true);
   display.display(true);
+}
+
+void update_state(MeasureMode mode, bool mode_changed, const char *reading, int batt_level) {
+  measure_mode = mode;
+
+  if (batt_level != last_batt_level && last_batt_level != -1) {
+    last_batt_level = batt_level;
+
+    display.clearScreen();
+    init_display();
+    return;
+  }
+
+  last_batt_level = batt_level;
+  snprintf(cur_measurement, sizeof(cur_measurement), "%s", reading);
+  draw_reading_fast();
+
+  if (mode_changed) {
+    draw_measure_mode_fast();
+  }
 }
 
 void wake() { init_display(); }
